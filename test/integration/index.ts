@@ -193,6 +193,12 @@ export async function run(): Promise<void> {
     await sleep(200);
   });
 
+  await check('会話ログの診断コマンドが動く', async () => {
+    // 形式が変わったときの命綱なので、実機で走ることを 3 OS 分確かめる。
+    await vscode.commands.executeCommand('blitzgrep.diagnoseChatLogs');
+    await sleep(500);
+  });
+
   console.log('\n=== BlitzGrep 統合テスト ===');
   for (const line of results) {
     console.log(line);

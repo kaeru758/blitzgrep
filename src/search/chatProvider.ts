@@ -73,6 +73,9 @@ export async function searchChat(
   log.debug(`会話ログ検索: ${targets.length} ファイル (tool_result=${includeToolResult})`);
 
   let sinkWantsMore = true;
+  // 形式が変わると「1 件も取り出せない」形で壊れる。黙って 0 件を返さないよう数えておく。
+  let filesRead = 0;
+  let filesWithEntries = 0;
   for (const file of targets) {
     if (token.isCancellationRequested || !sinkWantsMore) {
       return;
@@ -83,6 +86,10 @@ export async function searchChat(
     } catch (err) {
       sink.warn(`${file.project}: ${err instanceof Error ? err.message : String(err)}`);
       continue;
+    }
+    filesRead++;
+    if (entries.length > 0) {
+      filesWithEntries++;
     }
 
     const hits: SearchHit[] = [];
@@ -131,5 +138,14 @@ export async function searchChat(
     if (hits.length > 0) {
       sinkWantsMore = sink.push(hits);
     }
+  }
+
+  // ファイルは読めたのに、どれからも発言を取り出せなかった。
+  // 「一致なし」ではなく「読めていない」なので、そう言う。
+  if (filesRead > 0 && filesWithEntries === 0) {
+    sink.error(
+      `会話ログを ${filesRead} 本読みましたが、発言を 1 件も取り出せませんでした。` +
+        '形式が変わった可能性があります。コマンド「BlitzGrep: 会話ログを診断」で詳細を確認できます。',
+    );
   }
 }

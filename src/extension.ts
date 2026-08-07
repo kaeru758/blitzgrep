@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { CHAT_SCHEME, ChatContentProvider } from './chat/chatDocument';
+import { diagnoseChatLogs, formatDiagnosis } from './chat/diagnostics';
 import { clearTranscriptCache } from './chat/transcriptStore';
 import { resetGitCaches } from './git/gitService';
 import { initLog, log } from './log';
@@ -61,6 +62,16 @@ export function activate(context: vscode.ExtensionContext): void {
         .join('\n');
       await vscode.env.clipboard.writeText(text);
       void vscode.window.showInformationMessage(`BlitzGrep: ${hits.length} 件をコピーしました。`);
+    }),
+
+    vscode.commands.registerCommand('blitzgrep.diagnoseChatLogs', async () => {
+      // 会話ログの形式は公開仕様ではないので、変わったときに自力で切り分けられる材料を出す。
+      const report = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: 'BlitzGrep: 会話ログを診断しています…' },
+        async () => formatDiagnosis(await diagnoseChatLogs()),
+      );
+      log.info(`\n${report}`);
+      log.show();
     }),
 
     vscode.commands.registerCommand('blitzgrep.clearCaches', () => {

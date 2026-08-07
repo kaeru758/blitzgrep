@@ -7,6 +7,13 @@ import * as vscode from 'vscode';
 
 import { chatTargetLine, renderSession } from '../src/chat/chatDocument';
 import {
+  analyzeRecords,
+  type ChatDiagnosis,
+  diagnoseChatLogs,
+  formatDiagnosis,
+  judge,
+} from '../src/chat/diagnostics';
+import {
   type ChatEntry,
   clearTranscriptCache,
   encodeProjectDir,
@@ -578,6 +585,158 @@ export async function run(h: Harness, tmpRoot: string): Promise<void> {
         md.split('\n')[line].includes('失効する'),
         `toolResult=${toolResult}: ${line} 行目 = "${md.split('\n')[line]}"`,
       );
+    }
+  });
+
+  console.log('\nchat/diagnostics');
+
+  const jsonl = (...records: unknown[]) => records.map((r) => JSON.stringify(r));
+  const normal = jsonl(
+    { type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'やあ' }] } },
+    {
+      type: 'assistant',
+      message: { role: 'assistant', content: [{ type: 'thinking', thinking: 'ふむ' }, { type: 'text', text: 'はい' }] },
+    },
+    { type: 'summary', summary: '要約レコード' },
+  );
+
+  const diagnose = (lines: string[], over: Partial<Omit<ChatDiagnosis, 'verdicts' | 'analysis'>> = {}) => {
+    const analysis = analyzeRecords(lines);
+    const base = {
+      root: '/fake/projects',
+      rootExists: true,
+      files: 1,
+      scannedFiles: 1,
+      newestIso: '2026-08-01T00:00:00.000Z',
+      oldestIso: '2026-08-01T00:00:00.000Z',
+      analysis,
+      ...over,
+    };
+    return { ...base, verdicts: judge(base) };
+  };
+
+  await h.test('analyzeRecords: 発言・思考・その他の種別を数え分ける', () => {
+    const a = analyzeRecords(normal);
+    assert.equal(a.records, 3);
+    assert.equal(a.conversational, 2);
+    assert.deepEqual(a.blocks, { text: 2, thinking: 1 });
+    assert.deepEqual(a.unknownBlocks, {});
+    assert.deepEqual(a.otherRecordTypes, { summary: 1 });
+  });
+
+  await h.test('analyzeRecords: 壊れた行を JSON エラーとして数える', () => {
+    const a = analyzeRecords([...normal, '{ これは JSON ではない', '']);
+    assert.equal(a.jsonErrors, 1);
+    assert.equal(a.records, 4, '空行は数えない');
+  });
+
+  await h.test('診断: 正常なら ok と言い切る', () => {
+    const d = diagnose(normal);
+    assert.equal(d.verdicts[0].level, 'ok', JSON.stringify(d.verdicts));
+  });
+
+  await h.test('診断: 発言レコードが消えたら error にする', () => {
+    // Claude Code が type の値を変えた場合を模す。
+    const d = diagnose(jsonl({ type: 'turn', message: { role: 'user', content: [{ type: 'text', text: 'x' }] } }));
+    assert.equal(d.verdicts[0].level, 'error');
+    assert.ok(d.verdicts[0].message.includes('形式が変わった'), d.verdicts[0].message);
+  });
+
+  await h.test('診断: content の構造が変わったら error にする', () => {
+    // ブロック配列がオブジェクトになった場合を模す。
+    const d = diagnose(jsonl({ type: 'user', message: { role: 'user', content: { parts: ['x'] } } }));
+    assert.equal(d.verdicts[0].level, 'error');
+    assert.ok(d.verdicts[0].message.includes('本文を 1 つも取り出せません'), d.verdicts[0].message);
+  });
+
+  await h.test('診断: 知らないブロック種別は warn で報せる (壊れてはいない)', () => {
+    const d = diagnose(
+      jsonl({
+        type: 'assistant',
+        message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }, { type: 'server_tool_use', id: 'x' }] },
+      }),
+    );
+    assert.equal(d.verdicts[0].level, 'ok', '本文は取れているので ok のはず');
+    const warn = d.verdicts.find((v) => v.level === 'warn');
+    assert.ok(warn && warn.message.includes('server_tool_use'), JSON.stringify(d.verdicts));
+  });
+
+  await h.test('診断: 実在する正規の種別は「その他」に出さない', () => {
+    // 実物の transcript (Claude Code 2.1.x) に出る種別。ここを登録し忘れると
+    // 正常な種別で診断が埋まり、本当に新しいものが現れても埋もれる。
+    const known = [
+      'summary',
+      'system',
+      'last-prompt',
+      'attachment',
+      'ai-title',
+      'file-history-snapshot',
+      'file-history-delta',
+      'queue-operation',
+      'mode',
+    ];
+    const d = diagnose([...normal, ...jsonl(...known.map((type) => ({ type })))]);
+    assert.equal(
+      d.verdicts.filter((v) => v.level === 'info').length,
+      0,
+      `既知の種別が報告されている: ${JSON.stringify(d.verdicts)}`,
+    );
+
+    // 逆に、見たことのない種別は必ず出す。
+    const withNew = diagnose([...normal, ...jsonl({ type: 'brand-new-record-kind' })]);
+    const info = withNew.verdicts.find((v) => v.level === 'info');
+    assert.ok(info && info.message.includes('brand-new-record-kind'), JSON.stringify(withNew.verdicts));
+  });
+
+  await h.test('診断: 保存先が無ければそれだけを言う', () => {
+    const d = diagnose([], { rootExists: false, files: 0 });
+    assert.equal(d.verdicts.length, 1);
+    assert.equal(d.verdicts[0].level, 'error');
+    assert.ok(d.verdicts[0].message.includes('保存先がありません'));
+  });
+
+  await h.test('diagnoseChatLogs: 実ファイルを走査して正常と判定する', async () => {
+    // ファイル走査まで含めた通し。analyzeRecords 単体では拾えない経路を通す。
+    const d = await diagnoseChatLogs();
+    assert.equal(d.rootExists, true, d.root);
+    assert.ok(d.files >= 3, `フィクスチャの transcript が見つかっていない: ${d.files} 本`);
+    assert.ok(d.scannedFiles > 0);
+    assert.equal(d.verdicts[0].level, 'ok', JSON.stringify(d.verdicts));
+    assert.ok(d.analysis.blocks.text > 0, JSON.stringify(d.analysis));
+    assert.ok(d.analysis.blocks.tool_use > 0, 'tool_use を数えていない');
+  });
+
+  await h.test('formatDiagnosis: 貼り付けられる報告文になる', () => {
+    const text = formatDiagnosis(diagnose(normal));
+    for (const want of ['BlitzGrep 会話ログ診断', '保存先', 'ブロック内訳', 'text=2']) {
+      assert.ok(text.includes(want), `"${want}" が無い:\n${text}`);
+    }
+  });
+
+  await h.test('searchChat: 1 件も取り出せなければ「一致なし」で済ませない', async () => {
+    // 形式が変わって全ファイルが空になった状況を、読めない中身のファイルで作る。
+    const brokenRoot = path.join(tmpRoot, 'broken-claude');
+    const brokenProject = path.join(brokenRoot, 'projects', encodeProjectDir(workspacePath));
+    fs.mkdirSync(brokenProject, { recursive: true });
+    fs.writeFileSync(
+      path.join(brokenProject, 'session-x.jsonl'),
+      jsonl({ type: 'turn', message: { role: 'user', content: [{ type: 'text', text: '合言葉' }] } }).join('\n') + '\n',
+      'utf8',
+    );
+    const previous = process.env.CLAUDE_CONFIG_DIR;
+    process.env.CLAUDE_CONFIG_DIR = brokenRoot;
+    clearTranscriptCache();
+    try {
+      const c = h.collector();
+      await searchChat(chatScope(), h.makeOptions({ query: '合言葉' }), c.sink, h.noCancel(), h.counter());
+      assert.equal(c.hits.length, 0);
+      assert.ok(
+        c.errors.some((e) => e.includes('形式が変わった可能性')),
+        `黙って 0 件になっている: ${JSON.stringify(c.errors)}`,
+      );
+    } finally {
+      process.env.CLAUDE_CONFIG_DIR = previous;
+      clearTranscriptCache();
     }
   });
 

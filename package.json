@@ -2,7 +2,7 @@
   "name": "blitzgrep",
   "displayName": "BlitzGrep",
   "description": "「この実装どこから来た?」を探す全文検索。ワーキングツリー・全ブランチ・git履歴(pickaxe)・Claude Code の会話ログを横断します。",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "publisher": "local",
   "license": "MIT",
   "engines": {
@@ -103,6 +103,10 @@
       {
         "command": "blitzgrep.clearCaches",
         "title": "BlitzGrep: キャッシュを破棄"
+      },
+      {
+        "command": "blitzgrep.diagnoseChatLogs",
+        "title": "BlitzGrep: 会話ログを診断"
       }
     ],
     "menus": {
@@ -129,6 +133,11 @@
         },
         {
           "command": "blitzgrep.clearCaches",
+          "when": "view == blitzgrep.searchView",
+          "group": "1_actions"
+        },
+        {
+          "command": "blitzgrep.diagnoseChatLogs",
           "when": "view == blitzgrep.searchView",
           "group": "1_actions"
         }

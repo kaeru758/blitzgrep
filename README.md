@@ -1,5 +1,7 @@
 # BlitzGrep
 
+[English README](README.en.md)
+
 **「この実装、どこから来た？」を探すための VS Code 拡張機能。**
 
 `Ctrl+Shift+F` が届かない場所 — 他のブランチ、コミット履歴、そして Claude Code の会話ログ — を
@@ -167,6 +169,13 @@ GitLens を入れたまま併用してください。行の blame を常時眺�
 `~/.claude/settings.json` で伸ばせますが、**過ぎた分は戻りません**。「なぜ」を長く残したいなら
 保持期間を先に延ばしておいてください。
 
+**transcript の形式は公開仕様ではありません。** Claude Code の内部形式なので、変わる可能性があります。
+変わったときに「一致はありません」としか出ないのが最悪なので、次の 2 つを用意しています。
+
+- 検索が全ファイルから 1 件も取り出せなかった場合、「一致なし」ではなく**読めていないこと自体を報告**します。
+- コマンド **`BlitzGrep: 会話ログを診断`** — 何本読んで何を取り出せたか、知らないブロック種別が
+  出ていないかを一覧にします。そのまま不具合報告に貼れる形式です。
+
 その他:
 
 - ブランチ検索の対象は**ローカルに取得済みの ref だけ**です。未 fetch の `origin/xxx` は出ません。
@@ -218,8 +227,8 @@ GitLens を入れたまま併用してください。行の blame を常時眺�
 npm install
 npm run watch             # esbuild のウォッチビルド
 npm run typecheck         # tsc --noEmit
-npm test                  # 単体テスト (89 件) + webview スモークテスト (13 件)
-npm run test:integration  # 隔離した VS Code を起動しての統合テスト (17 件)
+npm test                  # 単体テスト + webview スモークテスト
+npm run test:integration  # 隔離した VS Code を起動しての統合テスト
 npm run package           # blitzgrep.vsix を生成
 ```
 
@@ -227,7 +236,8 @@ VS Code でこのフォルダを開き `F5` で拡張機能開発ホストが立
 
 単体テストは `vscode` モジュールをスタブに差し替え、本物の `git` と `ripgrep`（インストール済み
 VS Code から自動検出）に対して実行されます。webview（`media/main.js`）は VS Code の中でしか
-動かないため、`test/webview.js` が最小の DOM スタブ上で読み込んで描画を検証します。統合テストは `@vscode/test-electron` が
+動かないため、`test/webview.js` が最小の DOM スタブ上で読み込んで描画を検証します。
+CI は Ubuntu / macOS / Windows の 3 OS で全スイートを回します。統合テストは `@vscode/test-electron` が
 `.vscode-test/` にダウンロードした VS Code を使い、あなたの設定・拡張機能・会話ログには触れません
 （`CLAUDE_CONFIG_DIR` をフィクスチャに向けます）。
 
