@@ -63,8 +63,11 @@ function makeFixtureWorkspace() {
   git('commit', '-qm', 'spellword を削除');
 
   // 会話ログ用の transcript を、実物と同じレイアウトで作る。
+  // 符号化は src/chat/transcriptStore.ts の encodeProjectDir と揃えること。
+  // 一時ディレクトリには macOS の "_" や Windows の "RUNNER~1" が混ざるので、
+  // 区切り文字だけを置換していると OS によって照合できなくなる。
   const claudeHome = path.join(dir, 'claude-home');
-  const projectDir = path.join(claudeHome, 'projects', repo.replace(/[\\/:]/g, '-'));
+  const projectDir = path.join(claudeHome, 'projects', repo.replace(/[^a-zA-Z0-9]/g, '-'));
   fs.mkdirSync(projectDir, { recursive: true });
   const base = { sessionId: 'session-1', timestamp: '2026-08-01T10:00:00.000Z', cwd: repo, gitBranch: 'main' };
   const records = [

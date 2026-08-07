@@ -43,9 +43,23 @@ export function transcriptRoot(): string {
   return path.join(base, 'projects');
 }
 
-/** ワークスペースの絶対パスを、~/.claude/projects 配下のディレクトリ名の規則に合わせて符号化する。 */
+/**
+ * ワークスペースの絶対パスを、~/.claude/projects 配下のディレクトリ名の規則に合わせて符号化する。
+ *
+ * Claude Code は **英数字以外をすべて** "-" に潰す。区切り文字だけではない:
+ *   "OneDrive - TeamRK1992" -> "OneDrive---TeamRK1992"   (空白も - になる)
+ *   "md-visual-editor_debug" -> "md-visual-editor-debug" (_ も - になる)
+ *   "Vtuber運用計画"          -> "Vtuber----"             (非 ASCII は 1 文字 1 個)
+ * 区切り文字だけを置換していた頃は、空白を含むパス (Windows では珍しくない) が
+ * ことごとく照合できず、「このプロジェクトの会話が無い」ように見えていた。
+ */
 export function encodeProjectDir(fsPath: string): string {
-  return fsPath.replace(/[\\/:]/g, '-');
+  return fsPath.replace(/[^a-zA-Z0-9]/g, '-');
+}
+
+/** encoded が親、name が子 (またはそれ自身) の関係か。境界を見て "demo" と "demo2" を混同しない。 */
+function isSameOrUnder(parent: string, child: string): boolean {
+  return child === parent || child.startsWith(`${parent}-`);
 }
 
 /**
@@ -99,17 +113,27 @@ function collect(dir: string, project: string, depth: number, out: TranscriptFil
 
 /**
  * ワークスペースに対応する transcript を選ぶ。
- * ディレクトリ名の符号化規則に依存しきらないよう、前方一致でも拾う。
+ *
+ * まず完全一致だけを見る。符号化が合っている限り、これが唯一の正解。
+ * 空振りしたときだけ親子関係で拾い直す — 規則がまた変わっても全滅しないための保険で、
+ * 平時にこれを混ぜると無関係なプロジェクトが紛れ込む。
+ *
  * 一致が無ければ空を返す (呼び出し側が「全プロジェクト」に切り替えるかを決める)。
+ * パスが分からないとき (仮想ワークスペースなど) も空。黙って全件に広げると、
+ * 「このプロジェクトだけ」のつもりで他所の会話まで検索してしまう。
  */
 export function transcriptsForWorkspace(fsPath: string | undefined, all: TranscriptFile[]): TranscriptFile[] {
   if (!fsPath) {
-    return all;
+    return [];
   }
   const encoded = encodeProjectDir(fsPath).toLowerCase();
+  const exact = all.filter((t) => t.project.toLowerCase() === encoded);
+  if (exact.length > 0) {
+    return exact;
+  }
   return all.filter((t) => {
     const name = t.project.toLowerCase();
-    return name === encoded || encoded.startsWith(name) || name.startsWith(encoded);
+    return isSameOrUnder(encoded, name) || isSameOrUnder(name, encoded);
   });
 }
 

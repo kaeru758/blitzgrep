@@ -298,6 +298,47 @@ export async function run(h: Harness, tmpRoot: string): Promise<void> {
   const { sessionFile } = makeFakeTranscripts(claudeHome, workspacePath);
   clearTranscriptCache();
 
+  await h.test('encodeProjectDir: 実物のディレクトリ名を再現する', () => {
+    // Claude Code 2.1.x の ~/.claude/projects を実際に走査して逆算した規則。
+    // 「区切り文字だけ」だと空白を含むパスが全滅する (Windows では珍しくない)。
+    const cases: Array<[string, string]> = [
+      ['c:\\Users\\alice\\Downloads\\files', 'c--Users-alice-Downloads-files'],
+      // 空白も - になる。"OneDrive - Contoso" -> "OneDrive---Contoso"
+      ['c:\\Users\\alice\\OneDrive - Contoso\\Github\\grep', 'c--Users-alice-OneDrive---Contoso-Github-grep'],
+      // アンダースコアも - になる
+      ['c:\\work\\md-visual-editor_debug', 'c--work-md-visual-editor-debug'],
+      // 非 ASCII は 1 文字につき 1 個
+      ['c:\\work\\Vtuber運用計画', 'c--work-Vtuber----'],
+      ['g:\\３D', 'g---D'],
+      ['/Users/me/work/my project', '-Users-me-work-my-project'],
+    ];
+    for (const [input, want] of cases) {
+      assert.equal(encodeProjectDir(input), want, input);
+    }
+  });
+
+  await h.test('transcriptsForWorkspace: 名前が似た別プロジェクトを巻き込まない', () => {
+    const t = (project: string) => ({ project, file: `${project}/s.jsonl`, sizeBytes: 1, mtimeMs: 1 });
+    const all = [t('c--work-demo'), t('c--work-demo2'), t('c--work-demo-sub'), t('c--work-other')];
+    // 完全一致があるときは、それだけを返す。
+    assert.deepEqual(
+      transcriptsForWorkspace('c:\\work\\demo', all).map((x) => x.project),
+      ['c--work-demo'],
+    );
+    // 完全一致が無いときだけ親子で拾う。境界を見るので demo2 は入らない。
+    const noExact = [t('c--work-demo2'), t('c--work-demo-sub'), t('c--work')];
+    assert.deepEqual(
+      transcriptsForWorkspace('c:\\work\\demo', noExact).map((x) => x.project),
+      ['c--work-demo-sub', 'c--work'],
+    );
+  });
+
+  await h.test('transcriptsForWorkspace: パスが分からなければ全件に広げない', () => {
+    // 仮想ワークスペースなど。黙って他所の会話まで検索対象にしない。
+    const all = [{ project: 'c--work-demo', file: 'a', sizeBytes: 1, mtimeMs: 1 }];
+    assert.deepEqual(transcriptsForWorkspace(undefined, all), []);
+  });
+
   await h.test('encodeProjectDir: パス区切りを - に置き換える', () => {
     assert.equal(encodeProjectDir('C:\\work\\demo'), 'C--work-demo');
     assert.equal(encodeProjectDir('/home/me/proj'), '-home-me-proj');
