@@ -5,6 +5,14 @@
   "version": "0.6.0",
   "publisher": "local",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kaeru758/blitzgrep.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kaeru758/blitzgrep/issues"
+  },
+  "homepage": "https://github.com/kaeru758/blitzgrep#readme",
   "engines": {
     "vscode": "^1.90.0"
   },
