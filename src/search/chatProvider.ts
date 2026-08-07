@@ -3,6 +3,7 @@ import {
   type ChatEntry,
   listTranscripts,
   loadTranscript,
+  sameOrUnderPath,
   type TranscriptFile,
   transcriptRoot,
   transcriptsForWorkspace,
@@ -120,6 +121,12 @@ export async function searchChat(
           tool: entry.tool,
           date: entry.timestamp,
           isSidechain: entry.isSidechain,
+          // 「全プロジェクト」で拾った他所の会話を、結果一覧で見分けられるようにする。
+          otherProject:
+            scope.workspacePath !== undefined &&
+            entry.cwd !== '' &&
+            !sameOrUnderPath(scope.workspacePath, entry.cwd) &&
+            !sameOrUnderPath(entry.cwd, scope.workspacePath),
         };
         hits.push({
           id: nextId(),

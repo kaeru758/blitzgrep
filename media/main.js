@@ -173,19 +173,21 @@
     if (repo.label) {
       parts.push(repo.label);
     }
-    if (state.scopeMode === 'chat') {
-      parts.push(
-        state.chatAllProjects
-          ? '全プロジェクトの会話ログ'
-          : repo.chatSessions > 0
-            ? `会話ログ ${repo.chatSessions} 本`
-            : 'このプロジェクトの会話ログなし',
-      );
+    // 会話ログを使うのは chat と trace の両方。全プロジェクトのときは常に警告を出す
+    // (他所の会話が混ざっていることに気付かないまま読むのが一番まずい)。
+    const usesChat = state.scopeMode === 'chat' || state.scopeMode === 'trace';
+    if (usesChat && state.chatAllProjects) {
+      parts.push('⚠ 全プロジェクトの会話ログ');
+    } else if (state.scopeMode === 'chat') {
+      parts.push(repo.chatSessions > 0 ? `会話ログ ${repo.chatSessions} 本` : 'このプロジェクトの会話ログなし');
     } else if (repo.hint) {
       parts.push(repo.hint);
     }
     el.repoLine.textContent = parts.join(' · ');
-    el.repoLine.title = el.repoLine.textContent;
+    el.repoLine.title = state.chatAllProjects && usesChat
+      ? `${el.repoLine.textContent}\n他のフォルダで交わした会話も検索対象です。`
+      : el.repoLine.textContent;
+    el.repoLine.classList.toggle('warn', usesChat && state.chatAllProjects);
   }
 
   function pushState() {
@@ -624,6 +626,10 @@
       const o = g.origin;
       span(div, 'name', shortDate(o.date) || 'セッション');
       span(div, 'dir', o.isSidechain ? 'サブエージェント' : o.project);
+      // 「全プロジェクト」で拾った他所の会話は、そうと分かるようにしておく。
+      if (o.otherProject) {
+        span(div, 'ref foreign', '別プロジェクト').title = `このワークスペースの外の会話です\n${o.cwd}`;
+      }
       if (o.gitBranch) {
         span(div, 'ref', o.gitBranch);
       }

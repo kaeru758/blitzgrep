@@ -62,6 +62,64 @@ function isSameOrUnder(parent: string, child: string): boolean {
   return child === parent || child.startsWith(`${parent}-`);
 }
 
+/** 区切りと大小文字を吸収してパスを比べる形にする。 */
+function normalizePath(p: string): string {
+  return p.replace(/[\\/]+/g, '/').replace(/\/+$/, '').toLowerCase();
+}
+
+/** child が parent と同じか、その配下か。 */
+export function sameOrUnderPath(parent: string, child: string): boolean {
+  const a = normalizePath(parent);
+  const b = normalizePath(child);
+  return b === a || b.startsWith(`${a}/`);
+}
+
+/** cwd は先頭付近のレコードに必ず入っている。ここだけ読めば足りる。 */
+const CWD_HEAD_BYTES = 64 * 1024;
+const cwdCache = new Map<string, { mtimeMs: number; sizeBytes: number; cwd: string }>();
+
+/**
+ * transcript に記録されている作業ディレクトリを読む。
+ *
+ * ディレクトリ名の符号化規則は Claude Code の内部仕様で、変わると名前の照合は静かに全滅する
+ * (実際 `OneDrive - Foo` の空白を落としていて、空白入りのパスが軒並み外れていた)。
+ * cwd は記録された事実なので、規則が変わっても壊れない。名前で当たらないときの拠り所にする。
+ */
+export function readTranscriptCwd(file: TranscriptFile): string {
+  const cached = cwdCache.get(file.file);
+  if (cached && cached.mtimeMs === file.mtimeMs && cached.sizeBytes === file.sizeBytes) {
+    return cached.cwd;
+  }
+  let cwd = '';
+  try {
+    const fd = fs.openSync(file.file, 'r');
+    try {
+      const buf = Buffer.alloc(Math.min(CWD_HEAD_BYTES, Math.max(file.sizeBytes, 1)));
+      const read = fs.readSync(fd, buf, 0, buf.length, 0);
+      for (const line of buf.subarray(0, read).toString('utf8').split('\n')) {
+        if (!line.includes('"cwd"')) {
+          continue;
+        }
+        try {
+          const record = JSON.parse(line) as { cwd?: unknown };
+          if (typeof record.cwd === 'string' && record.cwd) {
+            cwd = record.cwd;
+            break;
+          }
+        } catch {
+          // 読み込み範囲の末尾で切れた行。次を見る。
+        }
+      }
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch (err) {
+    log.debug(`cwd を読めませんでした ${file.file}: ${errorMessage(err)}`);
+  }
+  cwdCache.set(file.file, { mtimeMs: file.mtimeMs, sizeBytes: file.sizeBytes, cwd });
+  return cwd;
+}
+
 /**
  * transcript を列挙する。
  * プロジェクトディレクトリの直下だけでなく、セッション UUID のサブディレクトリ配下にも
@@ -131,6 +189,20 @@ export function transcriptsForWorkspace(fsPath: string | undefined, all: Transcr
   if (exact.length > 0) {
     return exact;
   }
+
+  // 名前で当たらないときは、記録された cwd を直接見る。符号化規則が変わっても壊れない経路。
+  const byCwd = all.filter((t) => {
+    const cwd = readTranscriptCwd(t);
+    return cwd !== '' && (sameOrUnderPath(fsPath, cwd) || sameOrUnderPath(cwd, fsPath));
+  });
+  if (byCwd.length > 0) {
+    log.warn(
+      `会話ログをディレクトリ名で照合できませんでしたが、cwd から ${byCwd.length} 本を特定しました。` +
+        `符号化規則が変わった可能性があります (期待した名前: ${encoded})。`,
+    );
+    return byCwd;
+  }
+
   return all.filter((t) => {
     const name = t.project.toLowerCase();
     return isSameOrUnder(encoded, name) || isSameOrUnder(name, encoded);

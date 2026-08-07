@@ -20,6 +20,7 @@ import {
   extractEntries,
   listTranscripts,
   loadSession,
+  sameOrUnderPath,
   transcriptsForWorkspace,
 } from '../src/chat/transcriptStore';
 import { blameLine, parseBlamePorcelain } from '../src/git/gitService';
@@ -333,6 +334,54 @@ export async function run(h: Harness, tmpRoot: string): Promise<void> {
     );
   });
 
+  await h.test('transcriptsForWorkspace: 符号化規則が変わっても cwd で救い出す', () => {
+    // Claude Code が命名規則を変えた状況を模す。ディレクトリ名では絶対に当たらないが、
+    // transcript の中の cwd は事実なので、そこから特定できなければならない。
+    const oddRoot = path.join(tmpRoot, 'odd-claude');
+    const workspace = path.join(tmpRoot, 'odd-workspace', 'my project');
+    const oddDir = path.join(oddRoot, 'projects', 'ZZZ_totally_different_naming_scheme');
+    fs.mkdirSync(oddDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(oddDir, 's.jsonl'),
+      JSON.stringify({
+        type: 'user',
+        uuid: 'u1',
+        sessionId: 's1',
+        timestamp: '2026-08-01T00:00:00.000Z',
+        cwd: workspace,
+        gitBranch: 'main',
+        message: { role: 'user', content: [{ type: 'text', text: '合言葉の話' }] },
+      }) + '\n',
+      'utf8',
+    );
+    const previous = process.env.CLAUDE_CONFIG_DIR;
+    process.env.CLAUDE_CONFIG_DIR = oddRoot;
+    clearTranscriptCache();
+    try {
+      const all = listTranscripts();
+      assert.equal(all.length, 1);
+      // 名前では当たらないことを確認してから、
+      assert.notEqual(encodeProjectDir(workspace).toLowerCase(), all[0].project.toLowerCase());
+      // cwd 経由で拾えることを確認する。
+      assert.deepEqual(
+        transcriptsForWorkspace(workspace, all).map((t) => t.project),
+        ['ZZZ_totally_different_naming_scheme'],
+      );
+      // 無関係なワークスペースには渡さない。
+      assert.deepEqual(transcriptsForWorkspace(path.join(tmpRoot, 'nowhere'), all), []);
+    } finally {
+      process.env.CLAUDE_CONFIG_DIR = previous;
+      clearTranscriptCache();
+    }
+  });
+
+  await h.test('sameOrUnderPath: 区切りと大小文字を吸収し、境界も見る', () => {
+    assert.equal(sameOrUnderPath('C:\\work\\demo', 'c:/WORK/demo'), true);
+    assert.equal(sameOrUnderPath('C:\\work\\demo', 'C:\\work\\demo\\sub'), true);
+    assert.equal(sameOrUnderPath('C:\\work\\demo', 'C:\\work\\demo2'), false, 'demo2 を配下とみなしている');
+    assert.equal(sameOrUnderPath('C:\\work\\demo', 'C:\\work'), false);
+  });
+
   await h.test('transcriptsForWorkspace: パスが分からなければ全件に広げない', () => {
     // 仮想ワークスペースなど。黙って他所の会話まで検索対象にしない。
     const all = [{ project: 'c--work-demo', file: 'a', sizeBytes: 1, mtimeMs: 1 }];
@@ -453,6 +502,30 @@ export async function run(h: Harness, tmpRoot: string): Promise<void> {
       h.counter(),
     );
     assert.equal(on.hits.length, 1);
+  });
+
+  await h.test('searchChat: 他プロジェクトの会話に印を付ける', async () => {
+    // 「全プロジェクト」で拾った他所の会話が、一覧で見分けられないと混乱の元になる。
+    const c = h.collector();
+    await searchChat(
+      chatScope({ allProjects: true }),
+      h.makeOptions({ query: '合言葉' }),
+      c.sink,
+      h.noCancel(),
+      h.counter(),
+    );
+    const origins = c.hits.map((x) => x.origin as any);
+    assert.ok(
+      origins.some((o) => o.otherProject === true),
+      '別プロジェクトの印が付いていない',
+    );
+    assert.ok(
+      origins.some((o) => o.otherProject === false),
+      '自プロジェクトにまで印が付いている',
+    );
+    for (const o of origins) {
+      assert.equal(o.otherProject, !sameOrUnderPath(workspacePath, o.cwd), `印が cwd と合っていない: ${o.cwd}`);
+    }
   });
 
   await h.test('searchChat: サブエージェントの会話も対象になる', async () => {

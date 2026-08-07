@@ -351,6 +351,19 @@ select:focus {
   opacity: 0.9;
 }
 
+/* 他プロジェクトの会話が混ざっている状態は、見て分かるようにする。 */
+.repo-line.warn {
+  color: var(--vscode-inputValidation-warningForeground, var(--vscode-editorWarning-foreground));
+  opacity: 1;
+  font-weight: 600;
+}
+
+.r-file .ref.foreign {
+  background: var(--vscode-inputValidation-warningBorder, #c9a227);
+  color: var(--vscode-editor-background);
+  font-weight: 600;
+}
+
 .repo-line,
 .status {
   margin-top: 5px;

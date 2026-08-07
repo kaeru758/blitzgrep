@@ -270,6 +270,45 @@ test('結果一覧: 見出しに出所の印が付き、出所ごとに変わる
   );
 });
 
+test('結果一覧: 他プロジェクトの会話に「別プロジェクト」を出す', () => {
+  const chat = (over) => ({
+    kind: 'chat', project: 'p', cwd: 'c:/other', gitBranch: '', sessionId: 's', sessionFile: '/a.jsonl',
+    uuid: 'u', entryIndex: 0, withToolResults: false, role: 'user', block: 'text',
+    date: '2026-08-01T00:00:00Z', isSidechain: false, otherProject: false, ...over,
+  });
+  send({ type: 'started', id: 8 });
+  send({
+    type: 'batch',
+    id: 8,
+    hits: [
+      { id: 0, ref: null, file: '/mine.jsonl', line: 1, col: 1, len: 1, text: 'x', matches: [[0, 1]], origin: chat({ sessionFile: '/mine.jsonl' }) },
+      { id: 1, ref: null, file: '/theirs.jsonl', line: 1, col: 1, len: 1, text: 'x', matches: [[0, 1]], origin: chat({ sessionFile: '/theirs.jsonl', otherProject: true }) },
+    ],
+  });
+  send({ type: 'done', id: 8, stats: { matches: 2, files: 2, refs: 0, commits: 0, sessions: 2, durationMs: 1, truncated: false, deduped: 0, warnings: [], errors: [], engine: '会話ログ' } });
+
+  const headers = rows.children.filter((r) => r.classes.has('r-file'));
+  assert(headers.length === 2, `見出し数 = ${headers.length}`);
+  const flagged = headers.map((h) => h.children.some((c) => c.classes.has('foreign')));
+  assert(flagged.join(',') === 'false,true', `${flagged.join(',')}\n${rows.dump()}`);
+  assert(rows.textContent.includes('別プロジェクト'), rows.textContent);
+});
+
+test('ツールバー: 全プロジェクト検索中は警告を出す', () => {
+  const repo = { canBranchSearch: false, canHistorySearch: false, label: 'repo', chatSessions: 3, hint: '' };
+  const line = el.get('repo-line');
+
+  send({ type: 'init', state: { scopeMode: 'chat', query: '', chatAllProjects: false }, repo, folders: [], config: {} });
+  assert(!line.classes.has('warn'), `絞り込み中なのに警告が出ている: ${line.textContent}`);
+
+  send({ type: 'init', state: { scopeMode: 'chat', query: '', chatAllProjects: true }, repo, folders: [], config: {} });
+  assert(line.classes.has('warn') && line.textContent.includes('全プロジェクト'), line.textContent);
+
+  // 出所追跡も会話ログを使う。ここで警告が消えると気付けない。
+  send({ type: 'init', state: { scopeMode: 'trace', query: '', chatAllProjects: true }, repo, folders: [], config: {} });
+  assert(line.classes.has('warn') && line.textContent.includes('全プロジェクト'), line.textContent);
+});
+
 test('一致なし: 対象ごとの次の一手を出す', () => {
   send({
     type: 'init',

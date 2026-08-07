@@ -130,6 +130,17 @@ You choose which blocks to search:
 By default only the project matching your workspace. "All projects" searches across them.
 Sub-agent (Task) conversations are included.
 
+**Conversation logs live outside your repository** (`~/.claude/projects/`). Of the four sources,
+this is the only one that reads outside git. Nothing is sent anywhere — everything stays local.
+
+Matching your workspace to a project directory is done by name first, falling back to the `cwd`
+recorded inside the transcript. The directory naming scheme is Claude Code's internal detail, so
+relying on the name alone would break silently if it ever changes.
+
+**While "all projects" is on**, conversations from unrelated folders are in scope. So you can tell,
+the toolbar shows `⚠ all projects` and matching sessions are tagged `別プロジェクト` (other project)
+in the result list.
+
 Clicking a result **reassembles the conversation as readable Markdown** and jumps to the message.
 
 ### Keyboard

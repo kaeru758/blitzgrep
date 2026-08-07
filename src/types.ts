@@ -45,6 +45,11 @@ export type HitOrigin =
       date: string;
       /** サブエージェント (Task) 側の会話か。 */
       isSidechain: boolean;
+      /**
+       * いま開いているワークスペースとは別のフォルダで交わされた会話か。
+       * 「全プロジェクト」で検索していると無関係な会話が混ざるので、一覧で区別できるようにする。
+       */
+      otherProject: boolean;
     };
 
 /** 1ヒット = 1行。`matches` は `text` 内の [開始文字オフセット, 長さ]。 */
