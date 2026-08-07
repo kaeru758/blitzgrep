@@ -33,7 +33,15 @@ jobs:
       # 先に落としてそこを指させる。指さないと ripgrep のテストが黙って skip される。
       - name: VS Code を用意して appRoot を控える
         shell: bash
-        run: echo "BLITZ_TEST_APPROOT=$(node test/vscode-approot.js)" >> "$GITHUB_ENV"
+        run: |
+          set -euo pipefail
+          root="$(node test/vscode-approot.js)"
+          if [ -z "$root" ] || [ ! -d "$root/node_modules.asar.unpacked" ]; then
+            echo "appRoot を特定できませんでした: '$root'" >&2
+            exit 1
+          fi
+          echo "appRoot: $root"
+          echo "BLITZ_TEST_APPROOT=$root" >> "$GITHUB_ENV"
 
       - name: 単体テスト + webview
         run: npm test

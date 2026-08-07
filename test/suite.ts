@@ -338,7 +338,14 @@ async function main(): Promise<void> {
   console.log('\nsearch/ripgrepProvider (実 rg)');
   const rg = await locateRipgrep();
   if (!rg) {
-    console.log('  skip: ripgrep が見つかりません (BLITZ_TEST_APPROOT を設定してください)');
+    const why = 'ripgrep が見つかりません (BLITZ_TEST_APPROOT を設定してください)';
+    if (process.env.CI) {
+      // CI で黙って飛ばすと「3 OS で緑」が嘘になる。落として気付けるようにする。
+      failed++;
+      console.log(`  FAIL ${why}`);
+    } else {
+      console.log(`  skip: ${why}`);
+    }
   } else {
     console.log(`  (rg = ${rg})`);
 
