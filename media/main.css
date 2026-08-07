@@ -1,0 +1,704 @@
+:root {
+  --row-h: 22px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background);
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ------------------------------------------------------------------ ツールバー */
+
+.toolbar {
+  flex: 0 0 auto;
+  padding: 6px 8px 4px;
+  border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, transparent);
+}
+
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-wrap input {
+  flex: 1;
+  padding: 3px 76px 3px 6px;
+  min-width: 0;
+}
+
+input[type='text'],
+select {
+  width: 100%;
+  padding: 3px 6px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+}
+
+input[type='text']:focus,
+select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.input-actions {
+  position: absolute;
+  right: 3px;
+  display: flex;
+  gap: 1px;
+}
+
+.icon-btn {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 4px;
+  color: var(--vscode-input-foreground);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.icon-btn.on {
+  background: var(--vscode-inputOption-activeBackground);
+  border-color: var(--vscode-inputOption-activeBorder);
+  color: var(--vscode-inputOption-activeForeground);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.scope-row select {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 45%;
+}
+
+.chip-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+  border: none;
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.chip-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+  max-height: 56px;
+  overflow-y: auto;
+}
+
+.chips .chip {
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 16px;
+  border-radius: 8px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  white-space: nowrap;
+}
+
+.opts {
+  margin-top: 4px;
+  padding: 4px 6px;
+  border-radius: 2px;
+  background: var(--vscode-editorWidget-background, rgba(128, 128, 128, 0.08));
+}
+
+.opts .check {
+  margin: 2px 0;
+}
+
+.check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+}
+
+.advanced {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--vscode-sideBarSectionHeader-border, rgba(128, 128, 128, 0.25));
+}
+
+.field {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.field span {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  margin: 6px 0 4px;
+  cursor: pointer;
+}
+
+.links {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.links a {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+
+.scope-hint {
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.4;
+  opacity: 0.65;
+}
+
+/* ------------------------------------------------------------------ パイプライン */
+
+.pipeline {
+  margin-top: 6px;
+  padding: 4px 6px 5px;
+  border-radius: 3px;
+  background: var(--vscode-editorWidget-background, rgba(128, 128, 128, 0.08));
+  border: 1px solid var(--vscode-editorWidget-border, transparent);
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 1px 0;
+}
+
+/* 段と段をつなぐレール。上から下へ流れていることを線で示す。 */
+.stage .rail {
+  position: relative;
+  flex: 0 0 auto;
+  width: 10px;
+  align-self: stretch;
+  text-align: center;
+}
+
+.stage:not(:last-child) .rail::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 15px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--vscode-descriptionForeground, rgba(128, 128, 128, 0.6));
+  opacity: 0.35;
+}
+
+.stage .dot {
+  display: block;
+  font-size: 9px;
+  line-height: 16px;
+  opacity: 0.5;
+}
+
+.stage .body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.stage .head {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  line-height: 16px;
+}
+
+.stage .ico {
+  flex: 0 0 auto;
+  font-size: 10px;
+}
+
+.stage .lbl {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage .val {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.stage .note {
+  display: block;
+  font-size: 10px;
+  line-height: 1.35;
+  opacity: 0.6;
+  word-break: break-word;
+}
+
+.stage .bar {
+  display: block;
+  height: 2px;
+  margin: 3px 0 2px;
+  border-radius: 1px;
+  background: rgba(128, 128, 128, 0.25);
+  overflow: hidden;
+}
+
+.stage .bar i {
+  display: block;
+  height: 100%;
+  background: var(--vscode-progressBar-background);
+  transition: width 0.15s linear;
+}
+
+/* まだ来ていない段は沈める。全体像だけ見えていればよい。 */
+.stage.s-pending {
+  opacity: 0.45;
+}
+
+.stage.s-running .dot {
+  color: var(--vscode-progressBar-background);
+  opacity: 1;
+  animation: pulse 0.9s ease-in-out infinite;
+}
+
+.stage.s-running .lbl {
+  font-weight: 600;
+}
+
+.stage.s-done .dot {
+  color: var(--vscode-testing-iconPassed, var(--vscode-charts-green, #388a34));
+  opacity: 1;
+}
+
+.stage.s-skipped {
+  opacity: 0.5;
+}
+
+.stage.s-error .dot {
+  color: var(--vscode-errorForeground);
+  opacity: 1;
+}
+
+.stage.s-error .note {
+  color: var(--vscode-errorForeground);
+  opacity: 0.9;
+}
+
+.repo-line,
+.status {
+  margin-top: 5px;
+  font-size: 11px;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status.busy::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--vscode-progressBar-background);
+  animation: pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+.messages {
+  margin-top: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  border-radius: 2px;
+  background: var(--vscode-inputValidation-warningBackground);
+  border: 1px solid var(--vscode-inputValidation-warningBorder);
+  color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
+  max-height: 84px;
+  overflow-y: auto;
+}
+
+.messages.error {
+  background: var(--vscode-inputValidation-errorBackground);
+  border-color: var(--vscode-inputValidation-errorBorder);
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
+}
+
+.messages div {
+  word-break: break-word;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------ 結果リスト */
+
+.list-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.list {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  outline: none;
+}
+
+#spacer {
+  width: 1px;
+}
+
+#rows {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+}
+
+.r {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--row-h);
+  line-height: var(--row-h);
+  padding: 0 8px;
+  white-space: pre;
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ヒットは見出しの下にぶら下がっていることが分かるよう字下げし、縦のガイドで束ねる。 */
+.r-hit {
+  padding-left: 22px;
+}
+
+.r-hit::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--vscode-tree-indentGuidesStroke, rgba(128, 128, 128, 0.35));
+  opacity: 0.7;
+}
+
+.r:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+/* 選択行はフォーカスがエディタに移っても見失わないよう、左に帯を残す。 */
+.r.sel {
+  background: var(--vscode-list-inactiveSelectionBackground);
+  box-shadow: inset 3px 0 0 var(--vscode-focusBorder, #007fd4);
+}
+
+body.focused .r.sel {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.r.sel::before {
+  opacity: 0;
+}
+
+/* 見出しは背景を一段変えて、グループの切れ目に線を引く。 */
+.r-file {
+  font-weight: 600;
+  background: rgba(128, 128, 128, 0.09);
+}
+
+.r-file::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--vscode-sideBarSectionHeader-border, rgba(128, 128, 128, 0.3));
+}
+
+.sticky {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  /* 件数がスクロールバーの下に潜らないように空けておく。 */
+  padding-right: 16px;
+  background:
+    linear-gradient(rgba(128, 128, 128, 0.09), rgba(128, 128, 128, 0.09)),
+    var(--vscode-sideBar-background);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+.sticky::after {
+  display: none;
+}
+
+.r-file .twist {
+  flex: 0 0 auto;
+  width: 12px;
+  opacity: 0.7;
+  font-size: 9px;
+}
+
+/* 出所の印。どの見出しでも同じ位置・同じ幅に揃えて、混ざった一覧を読めるようにする。 */
+.r-file .src {
+  flex: 0 0 auto;
+  width: 15px;
+  margin-right: 4px;
+  font-size: 10px;
+  text-align: center;
+}
+
+.r-file .src.s-commit,
+.r-file .src.s-blame {
+  color: var(--vscode-gitDecoration-modifiedResourceForeground, #d7ba7d);
+}
+
+.r-file .src.s-worktree,
+.r-file .src.s-ref {
+  opacity: 0.75;
+}
+
+.r-file .name {
+  flex: 0 0 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.r-file .dir {
+  flex: 1 1 auto;
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: 11px;
+  opacity: 0.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+.r-file .ref {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  padding: 0 5px;
+  font-weight: 400;
+  font-size: 10px;
+  line-height: 15px;
+  border-radius: 8px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+
+.r-file .count {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.r-hit .ln {
+  flex: 0 0 auto;
+  min-width: 34px;
+  margin-right: 8px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 10px;
+  text-align: right;
+  opacity: 0.55;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+}
+
+/* 履歴検索: 追加行 / 削除行 */
+.r-hit .ln.add {
+  min-width: 0;
+  margin-right: 4px;
+  color: var(--vscode-gitDecoration-addedResourceForeground, #4a4);
+  opacity: 1;
+  font-weight: 700;
+}
+
+.r-hit .ln.del {
+  min-width: 0;
+  margin-right: 4px;
+  color: var(--vscode-gitDecoration-deletedResourceForeground, #c55);
+  opacity: 1;
+  font-weight: 700;
+}
+
+.r-hit .tx {
+  flex: 1 1 auto;
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size, 12px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.r-hit .hl {
+  background: var(--vscode-editor-findMatchHighlightBackground, rgba(234, 92, 0, 0.33));
+  outline: 1px solid var(--vscode-editor-findMatchHighlightBorder, transparent);
+  border-radius: 2px;
+}
+
+/* 選択行は背景が濃くなるので、一致部分も一段強くしないと埋もれる。 */
+.r.sel .hl {
+  background: var(--vscode-editor-findMatchBackground, rgba(234, 92, 0, 0.55));
+  outline-color: var(--vscode-editor-findMatchBorder, transparent);
+  font-weight: 700;
+}
+
+.empty {
+  padding: 12px 10px;
+  font-size: 11px;
+  overflow-y: auto;
+}
+
+.empty-title {
+  display: block;
+  opacity: 0.85;
+}
+
+/* 4 つの出所。この拡張機能が何をするものかを、待っている間に見せる。 */
+.empty-sources {
+  margin: 8px 0 2px;
+  padding: 6px 7px;
+  border-radius: 3px;
+  background: var(--vscode-editorWidget-background, rgba(128, 128, 128, 0.08));
+  border: 1px solid var(--vscode-editorWidget-border, transparent);
+}
+
+.src-row {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  line-height: 1.6;
+}
+
+.src-mark {
+  flex: 0 0 auto;
+  width: 15px;
+  font-size: 10px;
+  text-align: center;
+}
+
+.src-name {
+  flex: 0 0 auto;
+  width: 4.5em;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.src-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.empty-tips {
+  margin: 6px 0 0;
+  padding-left: 14px;
+  font-size: 10px;
+  line-height: 1.5;
+  opacity: 0.55;
+}
+
+.empty-tips li {
+  margin-bottom: 2px;
+}
+
+.hint {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  font-size: 10px;
+  opacity: 0.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-top: 1px solid var(--vscode-sideBarSectionHeader-border, rgba(128, 128, 128, 0.25));
+}

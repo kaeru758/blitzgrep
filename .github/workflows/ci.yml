@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # 1 つ落ちても他の OS の結果を見たい。どれが壊れているかを一度で知るため。
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: 型チェック
+        run: npm run typecheck
+
+      # 単体テストは同梱 ripgrep を appRoot から探す。CI には VS Code が入っていないので、
+      # 先に落としてそこを指させる。指さないと ripgrep のテストが黙って skip される。
+      - name: VS Code を用意して appRoot を控える
+        shell: bash
+        run: echo "BLITZ_TEST_APPROOT=$(node test/vscode-approot.js)" >> "$GITHUB_ENV"
+
+      - name: 単体テスト + webview
+        run: npm test
+
+      # Linux の CI には画面が無いので、VS Code を起動するには仮想ディスプレイが要る。
+      - name: 統合テスト (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:integration
+
+      - name: 統合テスト (macOS / Windows)
+        if: runner.os != 'Linux'
+        run: npm run test:integration
+
+  package:
+    name: vsix を作れるか
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx vsce package --no-dependencies --allow-missing-repository -o blitzgrep.vsix
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blitzgrep-vsix
+          path: blitzgrep.vsix

@@ -1,0 +1,357 @@
+{
+  "name": "blitzgrep",
+  "displayName": "BlitzGrep",
+  "description": "「この実装どこから来た?」を探す全文検索。ワーキングツリー・全ブランチ・git履歴(pickaxe)・Claude Code の会話ログを横断します。",
+  "version": "0.5.0",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "search",
+    "grep",
+    "ripgrep",
+    "git",
+    "branch",
+    "history",
+    "pickaxe",
+    "claude-code"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "capabilities": {
+    "virtualWorkspaces": true,
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "信頼されていないワークスペースでは外部プロセス (ripgrep / git) を起動しません。"
+    }
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "blitzgrep",
+          "title": "BlitzGrep",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "blitzgrep": [
+        {
+          "id": "blitzgrep.searchView",
+          "name": "全文検索",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "blitzgrep.focusSearch",
+        "title": "BlitzGrep: 検索を開く",
+        "icon": "$(search)"
+      },
+      {
+        "command": "blitzgrep.traceOrigin",
+        "title": "BlitzGrep: この実装はどこから来た？ (blame + 履歴 + 会話ログ)",
+        "icon": "$(history)"
+      },
+      {
+        "command": "blitzgrep.searchSelection",
+        "title": "BlitzGrep: 選択範囲を検索"
+      },
+      {
+        "command": "blitzgrep.searchSelectionAllBranches",
+        "title": "BlitzGrep: 選択範囲を全ブランチから検索"
+      },
+      {
+        "command": "blitzgrep.nextMatch",
+        "title": "BlitzGrep: 次の一致へ"
+      },
+      {
+        "command": "blitzgrep.prevMatch",
+        "title": "BlitzGrep: 前の一致へ"
+      },
+      {
+        "command": "blitzgrep.refresh",
+        "title": "BlitzGrep: 再検索",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "blitzgrep.clear",
+        "title": "BlitzGrep: 結果をクリア",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "blitzgrep.toggleHighlight",
+        "title": "BlitzGrep: エディタ内ハイライトの切り替え"
+      },
+      {
+        "command": "blitzgrep.refreshBranches",
+        "title": "BlitzGrep: ブランチ一覧を再取得"
+      },
+      {
+        "command": "blitzgrep.copyResults",
+        "title": "BlitzGrep: 検索結果をコピー"
+      },
+      {
+        "command": "blitzgrep.clearCaches",
+        "title": "BlitzGrep: キャッシュを破棄"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "blitzgrep.refresh",
+          "when": "view == blitzgrep.searchView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "blitzgrep.clear",
+          "when": "view == blitzgrep.searchView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "blitzgrep.refreshBranches",
+          "when": "view == blitzgrep.searchView",
+          "group": "1_actions"
+        },
+        {
+          "command": "blitzgrep.copyResults",
+          "when": "view == blitzgrep.searchView",
+          "group": "1_actions"
+        },
+        {
+          "command": "blitzgrep.clearCaches",
+          "when": "view == blitzgrep.searchView",
+          "group": "1_actions"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "blitzgrep.traceOrigin",
+          "when": "editorTextFocus",
+          "group": "9_blitzgrep@1"
+        },
+        {
+          "command": "blitzgrep.searchSelection",
+          "when": "editorHasSelection",
+          "group": "9_blitzgrep@2"
+        },
+        {
+          "command": "blitzgrep.searchSelectionAllBranches",
+          "when": "editorHasSelection",
+          "group": "9_blitzgrep@3"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "blitzgrep.focusSearch",
+        "key": "ctrl+alt+f",
+        "mac": "cmd+alt+f"
+      },
+      {
+        "command": "blitzgrep.searchSelection",
+        "key": "ctrl+alt+shift+f",
+        "mac": "cmd+alt+shift+f",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "blitzgrep.traceOrigin",
+        "key": "ctrl+alt+o",
+        "mac": "cmd+alt+o",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "blitzgrep.nextMatch",
+        "key": "f4",
+        "when": "blitzGrep.hasResults"
+      },
+      {
+        "command": "blitzgrep.prevMatch",
+        "key": "shift+f4",
+        "when": "blitzGrep.hasResults"
+      }
+    ],
+    "configuration": {
+      "title": "BlitzGrep",
+      "properties": {
+        "blitzgrep.maxResults": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 100,
+          "description": "1回の検索で収集する最大ヒット数。超えると打ち切ります。"
+        },
+        "blitzgrep.debounceMs": {
+          "type": "number",
+          "default": 120,
+          "minimum": 0,
+          "description": "入力に対するインクリメンタル検索のデバウンス時間 (ms)。"
+        },
+        "blitzgrep.historyMaxCommits": {
+          "type": "number",
+          "default": 300,
+          "minimum": 10,
+          "description": "履歴検索 (git log -S/-G) でさかのぼる最大コミット数。"
+        },
+        "blitzgrep.useGitignore": {
+          "type": "boolean",
+          "default": true,
+          "description": ".gitignore / .ignore を尊重する。"
+        },
+        "blitzgrep.includeHidden": {
+          "type": "boolean",
+          "default": false,
+          "description": "ドットファイル等の隠しファイルも検索する。"
+        },
+        "blitzgrep.followSymlinks": {
+          "type": "boolean",
+          "default": false,
+          "description": "シンボリックリンクをたどる。"
+        },
+        "blitzgrep.excludeGlobs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "!**/.git/**",
+            "!**/node_modules/**",
+            "!**/dist/**",
+            "!**/out/**",
+            "!**/*.min.js",
+            "!**/*.map",
+            "!**/package-lock.json"
+          ],
+          "description": "常に適用する除外グロブ (ripgrep の --glob 形式。除外は先頭に ! を付ける)。"
+        },
+        "blitzgrep.maxFileSizeKb": {
+          "type": "number",
+          "default": 2048,
+          "description": "この大きさを超えるファイルはスキップする (KB)。"
+        },
+        "blitzgrep.branchConcurrency": {
+          "type": "number",
+          "default": 6,
+          "minimum": 1,
+          "maximum": 32,
+          "description": "複数ブランチ検索時に同時実行する git grep の数。"
+        },
+        "blitzgrep.highlightInEditor": {
+          "type": "boolean",
+          "default": true,
+          "description": "エディタ内で「検索語の一致すべて」を控えめにハイライトする (ジャンプ先の行は blitzgrep.highlightCurrentLine で制御)。"
+        },
+        "blitzgrep.highlightCurrentLine": {
+          "type": "boolean",
+          "default": true,
+          "description": "結果から開いた行を、行全体の背景・左の帯・余白のマーカーで強調する。"
+        },
+        "blitzgrep.flashOnJump": {
+          "type": "boolean",
+          "default": true,
+          "description": "結果から開いた直後、その行を一瞬光らせる。"
+        },
+        "blitzgrep.contextLines": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 10,
+          "description": "結果に付ける前後のコンテキスト行数 (ワーキングツリー検索のみ)。"
+        },
+        "blitzgrep.ripgrepPath": {
+          "type": "string",
+          "default": "",
+          "description": "ripgrep 実行ファイルのパス。空なら VS Code 同梱版 → PATH の順で自動検出。"
+        },
+        "blitzgrep.githubMaxFilesPerBranch": {
+          "type": "number",
+          "default": 1500,
+          "minimum": 50,
+          "description": "リモート (vscode-vfs) リポジトリで既定ブランチ以外を検索する際に取得する最大ファイル数。"
+        },
+        "blitzgrep.openPreview": {
+          "type": "boolean",
+          "default": true,
+          "description": "結果のシングルクリックでプレビュー (プレビュータブ) で開く。"
+        }
+      }
+    },
+    "colors": [
+      {
+        "id": "blitzgrep.currentLineBackground",
+        "description": "結果から開いた行の背景色。一致そのものを目立たせるため、あえて無彩色で控えめにしてある。",
+        "defaults": {
+          "dark": "#ffffff12",
+          "light": "#00000010",
+          "highContrast": "#00000000",
+          "highContrastLight": "#00000000"
+        }
+      },
+      {
+        "id": "blitzgrep.currentMatchBackground",
+        "description": "結果から開いた一致そのものを塗り潰す色。",
+        "defaults": {
+          "dark": "#f0a30a",
+          "light": "#ffc233",
+          "highContrast": "#f38518",
+          "highContrastLight": "#ffc233"
+        }
+      },
+      {
+        "id": "blitzgrep.currentMatchForeground",
+        "description": "結果から開いた一致の文字色。塗り潰した背景の上で読めるようにする。",
+        "defaults": {
+          "dark": "#1a1a1a",
+          "light": "#1a1a1a",
+          "highContrast": "#000000",
+          "highContrastLight": "#000000"
+        }
+      },
+      {
+        "id": "blitzgrep.currentMatchBorder",
+        "description": "結果から開いた一致を囲む枠線と、行頭の帯・gutter マーカーの色。",
+        "defaults": {
+          "dark": "#c07800",
+          "light": "#a05a00",
+          "highContrast": "#ffffff",
+          "highContrastLight": "#000000"
+        }
+      },
+      {
+        "id": "blitzgrep.flashBackground",
+        "description": "結果から開いた直後に一瞬光る行の色。",
+        "defaults": {
+          "dark": "#f0a30a59",
+          "light": "#f0a30a66",
+          "highContrast": "#f3851859",
+          "highContrastLight": "#f0a30a66"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js --production",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "node test/build.js && node out/test/suite.js && node test/webview.js",
+    "test:integration": "npm run build && node test/integration/run.js",
+    "package": "npm run build && vsce package --no-dependencies -o blitzgrep.vsix"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.2"
+  }
+}
