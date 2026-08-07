@@ -16,8 +16,15 @@
   "engines": {
     "vscode": "^1.90.0"
   },
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1f2430",
+    "theme": "dark"
+  },
   "categories": [
-    "Other"
+    "Other",
+    "SCM Providers",
+    "AI"
   ],
   "keywords": [
     "search",
@@ -27,7 +34,11 @@
     "branch",
     "history",
     "pickaxe",
-    "claude-code"
+    "blame",
+    "claude-code",
+    "claude",
+    "transcript",
+    "conversation"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [

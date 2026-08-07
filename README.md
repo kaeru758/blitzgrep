@@ -2,6 +2,8 @@
 
 [English README](README.en.md)
 
+[![CI](https://github.com/kaeru758/blitzgrep/actions/workflows/ci.yml/badge.svg)](https://github.com/kaeru758/blitzgrep/actions/workflows/ci.yml)
+
 **「この実装、どこから来た？」を探すための VS Code 拡張機能。**
 
 `Ctrl+Shift+F` が届かない場所 — 他のブランチ、コミット履歴、そして Claude Code の会話ログ — を

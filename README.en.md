@@ -2,6 +2,8 @@
 
 [日本語 README](README.md)
 
+[![CI](https://github.com/kaeru758/blitzgrep/actions/workflows/ci.yml/badge.svg)](https://github.com/kaeru758/blitzgrep/actions/workflows/ci.yml)
+
 **Full-text search for the question "where did this code come from?"**
 
 Searches the places `Ctrl+Shift+F` can't reach — other branches, commit history, and
