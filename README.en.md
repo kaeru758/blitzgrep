@@ -13,6 +13,14 @@ Searches the places `Ctrl+Shift+F` can't reach — other branches, commit histor
 > Sometimes the answer isn't in your working tree. It might be on a branch, in a deleted
 > commit, or — most often — **only in the conversation**. BlitzGrep searches all of it at once.
 
+## Install
+
+Search for "BlitzGrep" in the Extensions view, or:
+
+```bash
+code --install-extension rkojima.blitzgrep
+```
+
 ## Start here: `Ctrl+Alt+O`
 
 Put your cursor on a line you're curious about and press **`Ctrl+Alt+O`**

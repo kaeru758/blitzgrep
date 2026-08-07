@@ -3,7 +3,7 @@
   "displayName": "BlitzGrep",
   "description": "「この実装どこから来た?」を探す全文検索。ワーキングツリー・全ブランチ・git履歴(pickaxe)・Claude Code の会話ログを横断します。",
   "version": "0.7.0",
-  "publisher": "local",
+  "publisher": "rkojima",
   "license": "MIT",
   "repository": {
     "type": "git",
